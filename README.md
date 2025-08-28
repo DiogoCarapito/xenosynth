@@ -1,8 +1,8 @@
 # xenosynth
 
-[![Github Actions Workflow](https://github.com/DiogoCarapito/python_project_template/actions/workflows/main.yaml/badge.svg)](https://github.com/DiogoCarapito/python_project_template/actions/workflows/main.yaml)
+[![Github Actions Workflow](https://github.com/DiogoCarapito/xenosynth/actions/workflows/main.yaml/badge.svg)](https://github.com/DiogoCarapito/xenosynth/actions/workflows/main.yaml)
 
-Python project template.
+raspberry pi based digital synth to explore xentonal tones and scales
 
 Python version: 3.12
 
