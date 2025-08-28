@@ -5,3 +5,7 @@ pytest==7.4.2
 pytest-cov==4.1.0
 black==23.9.1
 #ipython==8.17.2
+
+numpy
+sounddevice
+spidev
