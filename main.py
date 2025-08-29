@@ -68,8 +68,8 @@ _smoothed_freq = 440.0
 _smoothed_amp  = 0.2
 _running = True
 
-# Smoothing parameters (exponential smoothing)
-SMOOTH_TAU = 0.02  # seconds - smoothing time constant; smaller -> faster update
+# Smoothing parameters (try a higher value for amplitude)
+SMOOTH_TAU = 0.05  # or even 0.1 for more smoothing
 _alpha = None      # computed from POLL_HZ
 
 # --- SPI (MCP3008) setup ---
