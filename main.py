@@ -30,23 +30,19 @@ except Exception as e:
                      "Install PortAudio with: sudo apt-get install portaudio19-dev libportaudio2 libportaudiocpp0 ; "
                      "then pip3 install sounddevice") from e
 
-import board
-import busio
-from adafruit_ssd1306 import SSD1306_I2C
+from luma.core.interface.serial import i2c
+from luma.oled.device import sh1106
 from PIL import Image, ImageDraw, ImageFont
 
 # --- OLED setup for 128x64 on I2C (SCL/SDA) ---
-i2c = busio.I2C(board.SCL, board.SDA)
-oled_width = 128
-oled_height = 64
-oled = SSD1306_I2C(oled_width, oled_height, i2c)
+serial = i2c(port=1, address=0x3C)
+device = sh1106(serial)  # or ssd1306(serial) for SSD1306 displays
+
+oled_width, oled_height = device.size
+font = ImageFont.load_default()
 
 # Clear display
-oled.fill(0)
-oled.show()
-
-# Load default font
-font = ImageFont.load_default()
+device.clear()
 
 # -------------------- User parameters --------------------
 SAMPLE_RATE = 44100           # audio sample rate
@@ -156,7 +152,7 @@ def audio_callback(outdata, frames, time_info, status):
 
 
 def show_wave_on_oled(freq, amp):
-    """Display waveform graph and frequency value on OLED."""
+    """Display waveform graph and frequency value on OLED using luma."""
     image = Image.new("1", (oled_width, oled_height))
     draw = ImageDraw.Draw(image)
 
@@ -181,8 +177,7 @@ def show_wave_on_oled(freq, amp):
     for i in range(1, len(points)):
         draw.line([points[i-1], points[i]], fill=255)
 
-    oled.image(image)
-    oled.show()
+    device.display(image)
 
 
 def main():

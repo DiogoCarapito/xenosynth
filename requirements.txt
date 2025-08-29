@@ -10,6 +10,8 @@ numpy
 sounddevice
 spidev
 PyAudio
-adafruit-circuitpython-ssd1306
-pillow
+#adafruit-circuitpython-ssd1306
+luma.core
+luma.oled
+Pillow
 RPi.GPIO
