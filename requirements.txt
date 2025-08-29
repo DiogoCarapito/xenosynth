@@ -12,3 +12,4 @@ spidev
 PyAudio
 adafruit-circuitpython-ssd1306
 pillow
+RPi.GPIO

@@ -6,6 +6,10 @@ Monophonic sine synth controlled by two potentiometers via MCP3008:
  - Pot CH0 -> Frequency (100..2000 Hz)
  - Pot CH1 -> Amplitude (0..0.8)
 Audio output via sounddevice (PortAudio). Uses a lookup table for efficiency.
+OLED display for visual feedback.
+    - SDA (GPIO 2)
+    - SCL (GPIO 3)
+
 """
 
 import time
