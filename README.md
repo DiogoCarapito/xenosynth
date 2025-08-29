@@ -76,6 +76,7 @@ source .venv/bin/activate
 ```bash
 sudo apt update
 sudo apt install -y python3-dev python3-pip build-essential
+sudo apt install -y portaudio19-dev libportaudio2 libportaudiocpp0
 ```
 
 ### run make all

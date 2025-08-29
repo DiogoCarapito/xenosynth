@@ -8,7 +8,7 @@ Use this to check if audio crackles on your Pi.
 import numpy as np
 import sounddevice as sd
 
-SAMPLE_RATE = 44100   # try 22050 if CPU issues
+SAMPLE_RATE = 22050   # try 22050 if CPU issues
 BLOCK_SIZE = 512      # adjust to reduce crackle
 FREQ = 440.0          # A4 note
 AMP = 0.3             # 0.0 .. 1.0 safe range <0.8
