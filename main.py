@@ -105,15 +105,14 @@ def adc_poller():
 
     if _alpha is None:
         dt = 1.0 / POLL_HZ
-        # alpha for exponential smoothing: alpha = 1 - exp(-dt/tau)
-        _alpha = 1.0 - np.exp(-dt / SMOOTH_TAU)
+        _alpha_freq = 1.0 - np.exp(-dt / SMOOTH_TAU)      # original smoothing for freq
+        _alpha_amp  = 1.0 - np.exp(-dt / (SMOOTH_TAU * 2))  # slower smoothing for amp
 
     while _running:
         try:
             raw_f = read_adc(ADC_CHANNEL_FREQ)
             raw_a = read_adc(ADC_CHANNEL_AMP)
         except Exception:
-            # SPI transient error: skip this cycle
             time.sleep(1.0 / POLL_HZ)
             continue
 
@@ -121,8 +120,8 @@ def adc_poller():
         target_a = adc_to_amp(raw_a)
 
         # Exponential smoothing (simple low-pass)
-        _smoothed_freq += _alpha * (target_f - _smoothed_freq)
-        _smoothed_amp  += _alpha * (target_a - _smoothed_amp)
+        _smoothed_freq += _alpha_freq * (target_f - _smoothed_freq)
+        _smoothed_amp  += _alpha_amp  * (target_a - _smoothed_amp)
 
         time.sleep(1.0 / POLL_HZ)
 
