@@ -8,17 +8,18 @@ Python version: 3.11
 
 ## raspberry pi setup
 
-### update and upgrade
-
-```bash
-sudo apt update
-sudo apt upgrade
-```
 
 ### enable GPIO, I2C, SPI
 
 ```bash
 sudo raspi-config
+```
+
+### update and upgrade
+
+```bash
+sudo apt update
+sudo apt upgrade
 ```
 
 ### install git python and python-venv
@@ -30,8 +31,19 @@ sudo apt install git
 ### git clone
 
 ```bash
-git clone https://github.com/DiogoCarapito/xenosynth.git
+git clone https://github.com/DiogoCarapito/xenosynth.git && cd xenosynth
 ```
+
+### set crontab
+
+```bash
+sudo crontab -e
+```
+
+```
+@reboot /usr/bin/python3 xenosynth/main.py
+```
+
 
 ### install python 3.12 (optional)
 
