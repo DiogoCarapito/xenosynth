@@ -8,7 +8,6 @@ Python version: 3.11
 
 ## raspberry pi setup
 
-
 ### enable GPIO, I2C, SPI
 
 ```bash
@@ -37,13 +36,16 @@ git clone https://github.com/DiogoCarapito/xenosynth.git && cd xenosynth
 ### set crontab
 
 ```bash
+chmod +x xenosynth/update_and_run.sh
+```
+
+```bash
 sudo crontab -e
 ```
 
-```
+```nano
 @reboot /usr/bin/python3 xenosynth/main.py
 ```
-
 
 ### install python 3.12 (optional)
 
@@ -62,83 +64,24 @@ sudo make -j$(nproc)
 sudo make altinstall
 ```
 
-### setup a starting bash script wiht RGB led indicator, update and run
-
-```bash
-touch update_and_run.sh
-nano update_and_run.sh
-```
-
-```sh
-#!/bin/bash
-
-# GPIO pins
-RED=22
-GREEN=23
-BLUE=24
-
-# Set up GPIO (using sysfs)
-echo "$RED" > /sys/class/gpio/export
-echo "$GREEN" > /sys/class/gpio/export
-echo "$BLUE" > /sys/class/gpio/export
-echo "out" > /sys/class/gpio/gpio$RED/direction
-echo "out" > /sys/class/gpio/gpio$GREEN/direction
-echo "out" > /sys/class/gpio/gpio$BLUE/direction
-
-# Helper functions
-led_off() {
-    echo 0 > /sys/class/gpio/gpio$RED/value
-    echo 0 > /sys/class/gpio/gpio$GREEN/value
-    echo 0 > /sys/class/gpio/gpio$BLUE/value
-}
-
-led_yellow() {
-    echo 1 > /sys/class/gpio/gpio$RED/value
-    echo 1 > /sys/class/gpio/gpio$GREEN/value
-    echo 0 > /sys/class/gpio/gpio$BLUE/value
-}
-
-led_green() {
-    echo 0 > /sys/class/gpio/gpio$RED/value
-    echo 1 > /sys/class/gpio/gpio$GREEN/value
-    echo 0 > /sys/class/gpio/gpio$BLUE/value
-}
-
-# --- Start blinking yellow while updating ---
-led_yellow
-
-# Navigate to your repo
-cd xenosynth || exit
-
-# Pull latest code
-git pull
-
-# Optional: make or build commands
-make all
-
-# Switch LED to green
-led_green
-
-# Activate Python virtual environment
-source .venv/bin/activate
-
-# Run Python script
-python3 main.py
-
-# When done, turn off LED
-led_off
-```
-
-```bash
-chmod +x update_and_run.sh
-```
-
 ### activate and create venv
 
 ```bash
 python3.11 -m venv .venv
 source .venv/bin/activate
 ```
+
+### prepare dependencies
+
+```bash
+sudo apt update
+sudo apt install -y python3-dev python3-pip build-essential
+```
+
+### run make all
+
+```bash
+make all
 
 ### run
 

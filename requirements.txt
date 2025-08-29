@@ -9,3 +9,4 @@ black==23.9.1
 numpy
 sounddevice
 spidev
+PyAudio
