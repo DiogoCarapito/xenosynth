@@ -3,8 +3,8 @@
 synth.py
 
 Monophonic sine synth controlled by two potentiometers via MCP3008:
- - Pot CH0 -> Frequency (100..2000 Hz)
- - Pot CH1 -> Amplitude (0..0.8)
+ - Pot CH5 -> Frequency (100..2000 Hz)
+ - Pot CH6 -> Amplitude (0..0.8)
 Audio output via sounddevice (PortAudio). Uses a lookup table for efficiency.
 OLED display for visual feedback.
     - SDA (GPIO 2)
@@ -156,11 +156,28 @@ def audio_callback(outdata, frames, time_info, status):
     _phase = (_phase + step * frames) % TABLE_SIZE
 
 
-def show_freq_on_oled(freq):
-    """Display frequency value on OLED."""
+def show_wave_on_oled(freq, amp):
+    """Display waveform graph and frequency value on OLED."""
     image = Image.new("1", (oled_width, oled_height))
     draw = ImageDraw.Draw(image)
+
+    # Draw frequency text
     draw.text((0, 0), f"Freq: {int(freq)} Hz", font=font, fill=255)
+
+    # Generate waveform points
+    wave_height = oled_height - 16  # leave space for text
+    y_offset = 16
+    points = []
+    for x in range(oled_width):
+        # Map x to phase (0..2pi)
+        phase = (x / oled_width) * 2 * np.pi
+        y = int(y_offset + (wave_height / 2) * (1 - amp * np.sin(phase)))
+        points.append((x, y))
+
+    # Draw waveform
+    for i in range(1, len(points)):
+        draw.line([points[i-1], points[i]], fill=255)
+
     oled.image(image)
     oled.show()
 
@@ -183,7 +200,7 @@ def main():
             try:
                 while True:
                     time.sleep(0.2)  # main thread idle
-                    show_freq_on_oled(_smoothed_freq)
+                    show_wave_on_oled(_smoothed_freq, _smoothed_amp)
             except KeyboardInterrupt:
                 print("\nStopping...")
     except Exception as e:
