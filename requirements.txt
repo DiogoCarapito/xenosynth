@@ -10,3 +10,5 @@ numpy
 sounddevice
 spidev
 PyAudio
+adafruit-circuitpython-ssd1306
+pillow

@@ -26,6 +26,23 @@ except Exception as e:
                      "Install PortAudio with: sudo apt-get install portaudio19-dev libportaudio2 libportaudiocpp0 ; "
                      "then pip3 install sounddevice") from e
 
+import board
+import busio
+from adafruit_ssd1306 import SSD1306_I2C
+from PIL import Image, ImageDraw, ImageFont
+
+# --- OLED setup for 128x64 on I2C (SCL/SDA) ---
+i2c = busio.I2C(board.SCL, board.SDA)
+oled_width = 128
+oled_height = 64
+oled = SSD1306_I2C(oled_width, oled_height, i2c)
+
+# Clear display
+oled.fill(0)
+oled.show()
+
+# Load default font
+font = ImageFont.load_default()
 
 # -------------------- User parameters --------------------
 SAMPLE_RATE = 44100           # audio sample rate
@@ -135,6 +152,15 @@ def audio_callback(outdata, frames, time_info, status):
     _phase = (_phase + step * frames) % TABLE_SIZE
 
 
+def show_freq_on_oled(freq):
+    """Display frequency value on OLED."""
+    image = Image.new("1", (oled_width, oled_height))
+    draw = ImageDraw.Draw(image)
+    draw.text((0, 0), f"Freq: {int(freq)} Hz", font=font, fill=255)
+    oled.image(image)
+    oled.show()
+
+
 def main():
     global _running
 
@@ -153,6 +179,7 @@ def main():
             try:
                 while True:
                     time.sleep(0.2)  # main thread idle
+                    show_freq_on_oled(_smoothed_freq)
             except KeyboardInterrupt:
                 print("\nStopping...")
     except Exception as e:
