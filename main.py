@@ -164,14 +164,18 @@ def show_wave_on_oled(freq, amp):
     # Draw frequency text
     draw.text((0, 0), f"Freq: {int(freq)} Hz", font=font, fill=255)
 
+    # Waveform parameters
+    wave_height = oled_height - 18  # leave space for text
+    y_offset = 18
+    center_y = y_offset + wave_height // 2
+
     # Generate waveform points
-    wave_height = oled_height - 16  # leave space for text
-    y_offset = 16
     points = []
     for x in range(oled_width):
         # Map x to phase (0..2pi)
         phase = (x / oled_width) * 2 * np.pi
-        y = int(y_offset + (wave_height / 2) * (1 - amp * np.sin(phase)))
+        # Scale amplitude to fill most of the display
+        y = int(center_y - (amp * (wave_height // 2) * np.sin(phase)))
         points.append((x, y))
 
     # Draw waveform
