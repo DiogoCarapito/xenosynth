@@ -161,7 +161,7 @@ def audio_callback(outdata, frames, time_info, status):
     base = _smoothed_base
     decay = _smoothed_decay
 
-    N_PARTIALS = 6  # Use 6 partials
+    N_PARTIALS = 2  # Use 6 partials
 
     samples = np.zeros(frames, dtype=np.float32)
     for n in range(N_PARTIALS):
