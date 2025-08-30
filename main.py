@@ -69,7 +69,7 @@ _smoothed_decay = 2.0  # initial decay
 _running = True
 
 # Smoothing parameters (try a higher value for amplitude)
-SMOOTH_TAU = 0.05  # or even 0.1 for more smoothing
+SMOOTH_TAU = 0.2  # higher value = more smoothing
 _alpha = None      # computed from POLL_HZ
 
 # --- SPI (MCP3008) setup ---
