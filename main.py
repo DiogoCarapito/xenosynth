@@ -55,6 +55,7 @@ AMP_MAX  = 0.8                # maximum amplitude to avoid clipping
 ADC_CHANNEL_FREQ = 4          # MCP3008 channel for frequency pot
 ADC_CHANNEL_AMP  = 5          # MCP3008 channel for amplitude pot
 ADC_CHANNEL_BASE = 6          # MCP3008 channel for partials base pot
+ADC_CHANNEL_DECAY = 7         # MCP3008 channel for decay pot
 # ---------------------------------------------------------
 
 # --- Precompute sine table ---
@@ -64,6 +65,7 @@ sine_table = np.sin(2.0 * np.pi * np.arange(TABLE_SIZE) / TABLE_SIZE).astype(np.
 _smoothed_freq = 440.0
 _smoothed_amp  = 0.2
 _smoothed_base = 1.0  # initial base for partials
+_smoothed_decay = 2.0  # initial decay
 _running = True
 
 # Smoothing parameters (try a higher value for amplitude)
@@ -102,9 +104,14 @@ def adc_to_base(adc_val: int) -> float:
     return 1.0 + 3.0 * (adc_val / 1023.0)
 
 
+def adc_to_decay(adc_val: int) -> float:
+    # Map ADC 0..1023 to decay factor 1.2..4.0
+    return 1.2 + 2.8 * (adc_val / 1023.0)
+
+
 def adc_poller():
     """Background thread: polls ADC channels at POLL_HZ and updates smoothed globals."""
-    global _smoothed_freq, _smoothed_amp, _smoothed_base, _running, _alpha
+    global _smoothed_freq, _smoothed_amp, _smoothed_base, _smoothed_decay, _running, _alpha
 
     if _alpha is None:
         dt = 1.0 / POLL_HZ
@@ -117,6 +124,7 @@ def adc_poller():
             raw_f = read_adc(ADC_CHANNEL_FREQ)
             raw_a = read_adc(ADC_CHANNEL_AMP)
             raw_b = read_adc(ADC_CHANNEL_BASE)
+            raw_d = read_adc(ADC_CHANNEL_DECAY)
         except Exception:
             time.sleep(1.0 / POLL_HZ)
             continue
@@ -124,12 +132,14 @@ def adc_poller():
         target_f = adc_to_freq(raw_f)
         target_a = adc_to_amp(raw_a)
         target_b = adc_to_base(raw_b)
+        target_d = adc_to_decay(raw_d)
         # Quantize base to steps of 0.05 to avoid micro-crackles
         target_b = round(target_b * 20) / 20.0
 
         _smoothed_freq += _alpha_freq * (target_f - _smoothed_freq)
         _smoothed_amp  += _alpha_amp  * (target_a - _smoothed_amp)
         _smoothed_base += _alpha_base * (target_b - _smoothed_base)
+        _smoothed_decay += _alpha_base * (target_d - _smoothed_decay)
 
         time.sleep(1.0 / POLL_HZ)
 
@@ -153,12 +163,12 @@ def audio_callback(outdata, frames, time_info, status):
     N_PARTIALS = 4
 
     samples = np.zeros(frames, dtype=np.float32)
+    decay = _smoothed_decay
     for n in range(N_PARTIALS):
         partial_freq = freq * (base ** n)
+        partial_amp = amp / (decay ** n)
         step = (partial_freq * TABLE_SIZE) / SAMPLE_RATE
         idxs = (_phase + step * np.arange(frames)).astype(np.int64) % TABLE_SIZE
-        # Reduce amplitude for higher partials
-        partial_amp = amp / (2 ** n)
         samples += sine_table[idxs] * partial_amp
 
     # Write into outdata (mono -> shape (-1,1))
@@ -185,13 +195,14 @@ def show_wave_on_oled(freq, amp, base):
     # Generate waveform points
     points = []
     N_PARTIALS = 4
+    decay = _smoothed_decay
     for x in range(oled_width):
         # Map x to phase (0..2pi)
         phase = (x / oled_width) * 2 * np.pi
         val = 0
         for n in range(N_PARTIALS):
             partial_freq = freq * (base ** n)
-            partial_amp = amp / (2 ** n)
+            partial_amp = amp / (decay ** n)
             val += partial_amp * np.sin(phase * (base ** n))
         y = int(center_y - (wave_height // 2) * val)
         points.append((x, y))
