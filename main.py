@@ -154,18 +154,16 @@ def audio_callback(outdata, frames, time_info, status):
     outdata: (frames, channels) float32 numpy array provided by PortAudio.
     Keep this function extremely fast: no blocking, no I/O.
     """
-    global _phase, _smoothed_freq, _smoothed_amp, _smoothed_base
+    global _phase, _smoothed_freq, _smoothed_amp, _smoothed_base, _smoothed_decay
 
-    # Read current parameters (single memory read - fast)
     freq = _smoothed_freq
     amp  = _smoothed_amp
     base = _smoothed_base
+    decay = _smoothed_decay
 
-    # Number of partials (including fundamental)
-    N_PARTIALS = 4
+    N_PARTIALS = 6  # Use 6 partials
 
     samples = np.zeros(frames, dtype=np.float32)
-    decay = _smoothed_decay
     for n in range(N_PARTIALS):
         partial_freq = freq * (base ** n)
         partial_amp = amp / (decay ** n)
@@ -196,7 +194,7 @@ def show_wave_on_oled(freq, amp, base):
 
     # Generate waveform points
     points = []
-    N_PARTIALS = 4
+    N_PARTIALS = 6  # Use 6 partials
     decay = _smoothed_decay
     for x in range(oled_width):
         # Map x to phase (0..2pi)
