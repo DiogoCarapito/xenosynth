@@ -117,7 +117,8 @@ def adc_poller():
         dt = 1.0 / POLL_HZ
         _alpha_freq = 1.0 - np.exp(-dt / SMOOTH_TAU)
         _alpha_amp  = 1.0 - np.exp(-dt / (SMOOTH_TAU * 2))
-        _alpha_base = 1.0 - np.exp(-dt / (SMOOTH_TAU * 4))  # slower smoothing for base
+        _alpha_base = 1.0 - np.exp(-dt / (SMOOTH_TAU * 8))   # much slower for base
+        _alpha_decay = 1.0 - np.exp(-dt / (SMOOTH_TAU * 8))  # much slower for decay
 
     while _running:
         try:
@@ -133,13 +134,14 @@ def adc_poller():
         target_a = adc_to_amp(raw_a)
         target_b = adc_to_base(raw_b)
         target_d = adc_to_decay(raw_d)
-        # Quantize base to steps of 0.05 to avoid micro-crackles
-        target_b = round(target_b * 20) / 20.0
+        # Quantize base and decay to steps of 0.1 to avoid micro-crackles
+        target_b = round(target_b * 10) / 10.0
+        target_d = round(target_d * 10) / 10.0
 
         _smoothed_freq += _alpha_freq * (target_f - _smoothed_freq)
         _smoothed_amp  += _alpha_amp  * (target_a - _smoothed_amp)
         _smoothed_base += _alpha_base * (target_b - _smoothed_base)
-        _smoothed_decay += _alpha_base * (target_d - _smoothed_decay)
+        _smoothed_decay += _alpha_decay * (target_d - _smoothed_decay)
 
         time.sleep(1.0 / POLL_HZ)
 
