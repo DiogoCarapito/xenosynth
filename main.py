@@ -52,8 +52,9 @@ POLL_HZ = 100                 # how often we read the pots (Hz)
 FREQ_MIN = 100.0              # min frequency (Hz)
 FREQ_MAX = 2000.0             # max frequency (Hz)
 AMP_MAX  = 0.8                # maximum amplitude to avoid clipping
-ADC_CHANNEL_FREQ = 5          # MCP3008 channel for frequency pot
-ADC_CHANNEL_AMP  = 6          # MCP3008 channel for amplitude pot
+ADC_CHANNEL_FREQ = 4          # MCP3008 channel for frequency pot
+ADC_CHANNEL_AMP  = 5          # MCP3008 channel for amplitude pot
+ADC_CHANNEL_BASE = 6          # MCP3008 channel for partials base pot
 # ---------------------------------------------------------
 
 # --- Precompute sine table ---
@@ -62,6 +63,7 @@ sine_table = np.sin(2.0 * np.pi * np.arange(TABLE_SIZE) / TABLE_SIZE).astype(np.
 # --- Globals updated by ADC thread (smoothed) and read by audio callback ---
 _smoothed_freq = 440.0
 _smoothed_amp  = 0.2
+_smoothed_base = 1.0  # initial base for partials
 _running = True
 
 # Smoothing parameters (try a higher value for amplitude)
@@ -95,29 +97,38 @@ def adc_to_amp(adc_val: int) -> float:
     return (adc_val / 1023.0) * AMP_MAX
 
 
+def adc_to_base(adc_val: int) -> float:
+    """Map ADC 0..1023 to base 1.0..4.0"""
+    return 1.0 + 3.0 * (adc_val / 1023.0)
+
+
 def adc_poller():
     """Background thread: polls ADC channels at POLL_HZ and updates smoothed globals."""
-    global _smoothed_freq, _smoothed_amp, _running, _alpha
+    global _smoothed_freq, _smoothed_amp, _smoothed_base, _running, _alpha
 
     if _alpha is None:
         dt = 1.0 / POLL_HZ
-        _alpha_freq = 1.0 - np.exp(-dt / SMOOTH_TAU)      # original smoothing for freq
-        _alpha_amp  = 1.0 - np.exp(-dt / (SMOOTH_TAU * 2))  # slower smoothing for amp
+        _alpha_freq = 1.0 - np.exp(-dt / SMOOTH_TAU)
+        _alpha_amp  = 1.0 - np.exp(-dt / (SMOOTH_TAU * 2))
+        _alpha_base = 1.0 - np.exp(-dt / (SMOOTH_TAU * 2))
 
     while _running:
         try:
             raw_f = read_adc(ADC_CHANNEL_FREQ)
             raw_a = read_adc(ADC_CHANNEL_AMP)
+            raw_b = read_adc(ADC_CHANNEL_BASE)
         except Exception:
             time.sleep(1.0 / POLL_HZ)
             continue
 
         target_f = adc_to_freq(raw_f)
         target_a = adc_to_amp(raw_a)
+        target_b = adc_to_base(raw_b)
 
         # Exponential smoothing (simple low-pass)
         _smoothed_freq += _alpha_freq * (target_f - _smoothed_freq)
         _smoothed_amp  += _alpha_amp  * (target_a - _smoothed_amp)
+        _smoothed_base += _alpha_base * (target_b - _smoothed_base)
 
         time.sleep(1.0 / POLL_HZ)
 
@@ -130,34 +141,40 @@ def audio_callback(outdata, frames, time_info, status):
     outdata: (frames, channels) float32 numpy array provided by PortAudio.
     Keep this function extremely fast: no blocking, no I/O.
     """
-    global _phase, _smoothed_freq, _smoothed_amp
+    global _phase, _smoothed_freq, _smoothed_amp, _smoothed_base
 
     # Read current parameters (single memory read - fast)
     freq = _smoothed_freq
     amp  = _smoothed_amp
+    base = _smoothed_base
 
-    # Compute step in table indices per output sample
-    step = (freq * TABLE_SIZE) / SAMPLE_RATE  # how many table indices to advance per sample
+    # Number of partials (including fundamental)
+    N_PARTIALS = 4
 
-    # Build index array
-    # Use float indices and cast to int for table lookup (fast); fractional interpolation would be nicer but slightly heavier.
-    idxs = (_phase + step * np.arange(frames)).astype(np.int64) % TABLE_SIZE
-    samples = sine_table[idxs] * amp
+    samples = np.zeros(frames, dtype=np.float32)
+    for n in range(N_PARTIALS):
+        partial_freq = freq * (base ** n)
+        step = (partial_freq * TABLE_SIZE) / SAMPLE_RATE
+        idxs = (_phase + step * np.arange(frames)).astype(np.int64) % TABLE_SIZE
+        # Reduce amplitude for higher partials
+        partial_amp = amp / (2 ** n)
+        samples += sine_table[idxs] * partial_amp
 
     # Write into outdata (mono -> shape (-1,1))
     outdata[:] = samples.reshape(-1, 1)
 
     # advance phase
-    _phase = (_phase + step * frames) % TABLE_SIZE
+    _phase = (_phase + (freq * TABLE_SIZE / SAMPLE_RATE) * frames) % TABLE_SIZE
 
 
-def show_wave_on_oled(freq, amp):
+def show_wave_on_oled(freq, amp, base):
     """Display waveform graph and frequency value on OLED using luma."""
     image = Image.new("1", (oled_width, oled_height))
     draw = ImageDraw.Draw(image)
 
     # Draw frequency text
     draw.text((0, 0), f"Freq: {int(freq)} Hz", font=font, fill=255)
+    draw.text((0, 10), f"Base: {base:.2f}", font=font, fill=255)
 
     # Waveform parameters
     wave_height = oled_height - 18  # leave space for text
@@ -166,11 +183,16 @@ def show_wave_on_oled(freq, amp):
 
     # Generate waveform points
     points = []
+    N_PARTIALS = 4
     for x in range(oled_width):
         # Map x to phase (0..2pi)
         phase = (x / oled_width) * 2 * np.pi
-        # Scale amplitude to fill most of the display
-        y = int(center_y - (amp * (wave_height // 2) * np.sin(phase)))
+        val = 0
+        for n in range(N_PARTIALS):
+            partial_freq = freq * (base ** n)
+            partial_amp = amp / (2 ** n)
+            val += partial_amp * np.sin(phase * (base ** n))
+        y = int(center_y - (wave_height // 2) * val)
         points.append((x, y))
 
     # Draw waveform
@@ -198,7 +220,7 @@ def main():
             try:
                 while True:
                     time.sleep(0.2)  # main thread idle
-                    show_wave_on_oled(_smoothed_freq, _smoothed_amp)
+                    show_wave_on_oled(_smoothed_freq, _smoothed_amp, _smoothed_base)
             except KeyboardInterrupt:
                 print("\nStopping...")
     except Exception as e:
